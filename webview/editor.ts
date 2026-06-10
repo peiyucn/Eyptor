@@ -457,15 +457,20 @@ function normLineForCompare(line: string): string {
 
 // ─── 最小化差异合并 ──────────────────────────────────────────────────────────
 //
-// 将 remark-stringify 的全量序列化结果与原始文件做 LCS 差量合并：
-// - 空行不参与比较，直接保留原文件中的空行
-// - 表格分隔行纳入比较，但用 normalizeSepRow 忽略 dash 宽度；
+// 将 remark-stringify 的全量序列化结果与原始文件做 LCS 差量合并。
+// 核心策略：以序列化结果（serialized）为骨架保留其空行结构，
+//           对 LCS 匹配的非空行使用原文件版本以保留用户格式；
+//           新增/删除的空行随序列化结果自然变化。
+//
+// 规范化规则（不影响合并策略，仅影响"是否视为同一行"的判断）：
+// - 表格分隔行用 normalizeSepRow 忽略 dash 宽度；
 //   对齐标记（:---:）改变时照常应用（表格对齐操作生效）
-// - adjacent strong 拆分（**a** **b** ↔ **a b**）视为等价，不应用
+// - adjacent strong 拆分（**a** **b** ↔ **a b**）视为等价，不触发差异
 // - 真正的内容变化（文字增删改）通过 LCS 精确定位并应用
 function applyMinimalChanges(saved: string, serialized: string): string {
     interface SigLine { text: string; lineIdx: number }
 
+    // 提取非空行签名：空行不参与 LCS，避免多个空行彼此混淆导致错误匹配
     function sigLines(md: string): SigLine[] {
         return md.split('\n').reduce<SigLine[]>((acc, line, i) => {
             if (line.trim() !== '') acc.push({ text: line, lineIdx: i });
@@ -485,69 +490,42 @@ function applyMinimalChanges(saved: string, serialized: string): string {
                 ? dp[i - 1][j - 1] + 1
                 : Math.max(dp[i - 1][j], dp[i][j - 1]);
 
-    // 回溯 → 编辑序列
-    type Edit =
-        | { op: 'keep'; saved: SigLine; serial: SigLine }
-        | { op: 'del';  saved: SigLine }
-        | { op: 'ins';  serial: SigLine };
-    const edits: Edit[] = [];
+    // 回溯：构建 keepMap（serialized 非空行索引 → saved 非空行索引）
+    // 只有 LCS 匹配的非空行才用原文件版本；其余行（含所有空行）直接用序列化版本
+    const keepMap = new Map<number, number>();
     {
         let i = n, j = m;
-        while (i > 0 || j > 0) {
-            if (i > 0 && j > 0 &&
-                normLineForCompare(savedSig[i - 1].text) === normLineForCompare(serialSig[j - 1].text)) {
-                edits.unshift({ op: 'keep', saved: savedSig[i - 1], serial: serialSig[j - 1] });
+        while (i > 0 && j > 0) {
+            if (normLineForCompare(savedSig[i - 1].text) === normLineForCompare(serialSig[j - 1].text)) {
+                keepMap.set(serialSig[j - 1].lineIdx, savedSig[i - 1].lineIdx);
                 i--; j--;
-            } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-                edits.unshift({ op: 'ins', serial: serialSig[j - 1] });
+            } else if (dp[i][j - 1] >= dp[i - 1][j]) {
                 j--;
             } else {
-                edits.unshift({ op: 'del', saved: savedSig[i - 1] });
                 i--;
             }
         }
     }
 
-    // 编辑序列 → 文件级修改指令
-    const replacements = new Map<number, string>();   // lineIdx → newText
-    const toDelete      = new Set<number>();
-    const insertAfter   = new Map<number, string[]>(); // lineIdx (-1=头部) → lines
+    // 快速路径：非空行全部匹配且总行数未变 → 无变更
+    if (keepMap.size === n && keepMap.size === m && saved.length === serialized.length) return saved;
 
-    let lastSavedLineIdx = -1;
-    let e = 0;
-    while (e < edits.length) {
-        const edit = edits[e];
-        const next = edits[e + 1];
-        if (edit.op === 'del' && next?.op === 'ins') {
-            // del + ins = 替换
-            replacements.set(edit.saved.lineIdx, next.serial.text);
-            lastSavedLineIdx = edit.saved.lineIdx;
-            e += 2;
-        } else if (edit.op === 'del') {
-            toDelete.add(edit.saved.lineIdx);
-            lastSavedLineIdx = edit.saved.lineIdx;
-            e++;
-        } else if (edit.op === 'ins') {
-            const bucket = insertAfter.get(lastSavedLineIdx) ?? [];
-            bucket.push(edit.serial.text);
-            insertAfter.set(lastSavedLineIdx, bucket);
-            e++;
-        } else { // keep
-            lastSavedLineIdx = edit.saved.lineIdx;
-            e++;
+    // 重建：以序列化结果为骨架遍历每一行（含空行）
+    //   keepMap 中有映射 → 用原文件行（保留用户格式，如表格列宽对齐）
+    //   keepMap 中无映射 → 用序列化行（新增内容 + 所有空行随序列化结果变化）
+    const savedLines = saved.split('\n');
+    const serializedLines = serialized.split('\n');
+    const result: string[] = [];
+
+    for (let i = 0; i < serializedLines.length; i++) {
+        const savedIdx = keepMap.get(i);
+        if (savedIdx !== undefined) {
+            result.push(savedLines[savedIdx]);
+        } else {
+            result.push(serializedLines[i]);
         }
     }
 
-    if (toDelete.size === 0 && replacements.size === 0 && insertAfter.size === 0) return saved;
-
-    // 重建文件
-    const savedLines = saved.split('\n');
-    const result: string[] = [...(insertAfter.get(-1) ?? [])];
-    for (let lineIdx = 0; lineIdx < savedLines.length; lineIdx++) {
-        if (toDelete.has(lineIdx)) continue;
-        result.push(replacements.has(lineIdx) ? replacements.get(lineIdx)! : savedLines[lineIdx]);
-        for (const ins of (insertAfter.get(lineIdx) ?? [])) result.push(ins);
-    }
     return result.join('\n');
 }
 
