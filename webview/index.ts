@@ -3,6 +3,8 @@ import "@milkdown/crepe/theme/common/prosemirror.css";
 import "@milkdown/crepe/theme/common/reset.css";
 import "@milkdown/crepe/theme/common/code-mirror.css";
 import "@milkdown/crepe/theme/common/latex.css";
+import "@milkdown/crepe/theme/common/list-item.css";
+import "@milkdown/crepe/theme/common/table.css";
 import "./style.css"; // 必须在 Crepe CSS 之后加载，用 VSCode 变量覆盖 Crepe 主题
 import {
     createEditor,
@@ -30,12 +32,9 @@ import { setupLinkPopup } from "./components/linkPopup";
 import { setupPathLink } from "./components/pathLink";
 import { initPathComplete, dispatchPathSuggestions } from "./components/pathLink/pathComplete";
 import { dispatchImgPathSuggestions, dispatchImagePathResolved } from "./components/imageView/imgPathComplete";
-import { setImageUriMap } from "./components/imageView";
+import { setImageUriMap, showGlobalLightbox } from "./components/imageView";
 import { initFindBar } from "./components/findBar";
 import { initHeadingIds } from "./headingIds";
-import { setupTableAddButtons, setDebugMode } from "./components/table/addButtons";
-import { setupTableHandles } from "./components/table/handles";
-import { setupTableToolbar } from "./components/table/toolbar";
 import { initToolbar } from "./components/toolbar";
 import { initToc } from "./components/toc";
 import {
@@ -380,9 +379,20 @@ if (editorContainer) {
     setupPathLink(editorContainer);
     initHeadingIds(editorContainer);
     initPathComplete(() => getEditorView());
-    setupTableAddButtons(editorContainer, () => getEditorView());
-    setupTableHandles(editorContainer, () => getEditorView());
     enhanceCodeBlocks(editorContainer);
+
+    // 图片 lightbox：双击/Ctrl+Click 图片放大查看
+    editorContainer.addEventListener("mousedown", (e) => {
+        const img = (e.target as Element).closest<HTMLImageElement>(
+            ".image-wrapper img",
+        );
+        if (!img || !img.src) return;
+        if (e.detail === 2 || (e as MouseEvent).ctrlKey || (e as MouseEvent).metaKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            showGlobalLightbox(img.src, img.alt);
+        }
+    });
 
     // 点击 #editor 容器底部空白区域（内容最后一行以下）→ 光标移到文档末尾并聚焦
     editorContainer.addEventListener("mousedown", (e) => {
@@ -583,71 +593,10 @@ const selTb = setupSelectionToolbar(
     getLineMap,
     getMarkdownSource,
 );
-const tableTb = setupTableToolbar(() => getEditorView());
-
 registerSelectionChangeHandler((view) => {
     selTb.onSelectionChange(view);
-    tableTb.onSelectionChange(view);
     topbarTb?.onSelectionChange(view);
 });
-
-// Checkbox toggle：点击任务列表项左侧的伪元素复选框区域
-document.addEventListener(
-    "click",
-    (e) => {
-        const target = e.target as Element;
-        const taskItem = target.closest(
-            'li[data-item-type="task"]',
-        ) as HTMLElement | null;
-        if (!taskItem) {
-            return;
-        }
-
-        // 只响应点击最左边 24px（checkbox 伪元素区域）
-        const rect = taskItem.getBoundingClientRect();
-        if ((e as MouseEvent).clientX - rect.left > 24) {
-            return;
-        }
-
-        const view = getEditorView();
-        if (!view) {
-            return;
-        }
-
-        // 用 posAtDOM 从 DOM 节点直接反查 ProseMirror 位置（比 posAtCoords 精确）
-        let domPos: number;
-        try {
-            domPos = view.posAtDOM(taskItem, 0);
-        } catch {
-            return;
-        }
-
-        const { state } = view;
-        const $pos = state.doc.resolve(
-            Math.min(domPos, state.doc.content.size),
-        );
-
-        // 沿 $pos 的祖先链找到 task_list_item 节点
-        for (let d = $pos.depth; d >= 0; d--) {
-            const node = $pos.node(d);
-            if (
-                node.type.name === "task_list_item" ||
-                node.type.name === "list_item"
-            ) {
-                const nodePos = $pos.before(d);
-                const checked = node.attrs.checked as boolean;
-                view.dispatch(
-                    state.tr.setNodeMarkup(nodePos, null, {
-                        ...node.attrs,
-                        checked: !checked,
-                    }),
-                );
-                return;
-            }
-        }
-    },
-    true,
-);
 
 // Cmd/Ctrl+F：打开查找栏（预填当前选区文字）
 window.addEventListener("keydown", (e) => {
@@ -894,7 +843,6 @@ onMessage(async (msg) => {
     } else if (msg.type === "lineMapUpdate") {
         currentLineMap = msg.lineMap;
     } else if (msg.type === "setDebugMode") {
-        setDebugMode(msg.enabled);
         setLogTableSel(msg.enabled);
         topbarTb?.setDebugMode(msg.enabled);
     } else if (msg.type === "imageUploaded") {

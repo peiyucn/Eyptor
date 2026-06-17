@@ -90,7 +90,7 @@ body {
     --crepe-color-surface-low: var(--vscode-sideBar-background, var(--vscode-editor-background));
     --crepe-color-on-surface: var(--vscode-editor-foreground);
     --crepe-color-on-surface-variant: var(--vscode-descriptionForeground);
-    --crepe-color-outline: var(--vscode-editorWidget-border, #454545);
+    --crepe-color-outline: color-mix(in srgb, var(--vscode-editor-foreground) 40%, transparent);
     --crepe-color-primary: var(--vscode-focusBorder, #007acc);
     --crepe-color-secondary: var(--vscode-button-secondaryBackground, #3a3d41);
     --crepe-color-on-secondary: var(--vscode-button-secondaryForeground, #ccc);
@@ -101,6 +101,8 @@ body {
     --crepe-color-hover: var(--vscode-list-hoverBackground, rgba(255,255,255,0.05));
     --crepe-color-selected: var(--vscode-list-activeSelectionBackground, rgba(255,255,255,0.1));
     --crepe-color-inline-area: var(--vscode-input-background, rgba(128,128,128,0.15));
+    --crepe-shadow-1: 0 1px 3px color-mix(in srgb, var(--vscode-editor-foreground) 45%, transparent);
+    --crepe-shadow-2: 0 2px 6px color-mix(in srgb, var(--vscode-editor-foreground) 45%, transparent);
 
     /* 字体：覆盖 Crepe 的 serif/sans，统一用 VSCode 编辑器字体 */
     --crepe-font-default: var(
@@ -121,6 +123,7 @@ body {
         --custom-font-family,
         var(--vscode-editor-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif)
     ) !important;
+    caret-color: var(--vscode-editorCursor-foreground, auto);
     font-size: var(--vscode-editor-font-size, 14px) !important;
 }
 
@@ -228,6 +231,19 @@ body {
 
 /* 代码块 */
 /* ─── 代码块（基于 Crepe CodeMirror）─── */
+
+/* active line / selection 用 VSCode 变量 */
+.milkdown .milkdown-code-block .cm-editor .cm-activeLine {
+    background: var(--vscode-editor-lineHighlightBackground, rgba(128,128,128,0.08)) !important;
+}
+.milkdown .milkdown-code-block .cm-editor .cm-selectionBackground,
+.milkdown .milkdown-code-block .cm-editor .cm-selectionBackground *,
+.milkdown .milkdown-code-block .cm-editor ::selection {
+    background: var(--vscode-editor-selectionBackground, rgba(0,122,204,0.3)) !important;
+}
+.milkdown .milkdown-code-block .cm-editor ::selection {
+    color: var(--vscode-editor-selectionForeground, inherit);
+}
 .milkdown .milkdown-code-block {
     border-radius: 6px;
     border: 1px solid var(--vscode-panel-border, rgba(128,128,128,0.2));
@@ -499,33 +515,6 @@ body {
 
 /* ── 任务列表（Milkdown v7 实际 DOM）───────────────────── */
 
-/* ── 任务列表 ─────────────────────────────────────────── */
-.milkdown .ProseMirror li[data-item-type="task"] {
-    list-style: none;
-}
-.milkdown .ProseMirror li[data-item-type="task"]::marker {
-    display: none;
-}
-.milkdown .ProseMirror li[data-item-type="task"] p:first-child::before {
-    content: "";
-    display: inline-block;
-    width: 14px; height: 14px;
-    margin-right: 6px;
-    vertical-align: middle;
-    border: 1.5px solid var(--vscode-checkbox-border, #8b8b8b);
-    border-radius: 3px;
-    background: var(--vscode-checkbox-background, transparent);
-    cursor: pointer;
-}
-.milkdown .ProseMirror li[data-item-type="task"][data-checked="true"] p:first-child::before {
-    background-color: var(--vscode-focusBorder, #007acc);
-    border-color: var(--vscode-focusBorder, #007acc);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
-    background-size: 10px 10px;
-    background-position: center;
-    background-repeat: no-repeat;
-}
-
 /* 链接 */
 .milkdown .ProseMirror a {
     color: var(--vscode-textLink-foreground, #4ea6ea);
@@ -552,43 +541,6 @@ body.epytor-modifier-active .milkdown .ProseMirror a:hover {
     opacity: 0.6;
 }
 
-/* 表格 */
-.milkdown .ProseMirror table {
-    border-collapse: collapse;
-    width: 100%;
-    margin: 0 0 1em;
-    overflow-x: auto;
-    display: block;
-}
-
-.milkdown .ProseMirror th,
-.milkdown .ProseMirror td {
-    border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
-    padding: 6px 12px;
-    text-align: left;
-    position: relative; /* 供 .selectedCell::after 绝对定位 */
-    min-width: 60px;
-    overflow-wrap: anywhere; /* 连续长字符（URL、变量名等）自动换行，不撑宽列 */
-}
-
-/* 空单元格内的段落撑开行高，确保空表格行高一致 */
-.milkdown .ProseMirror td > p,
-.milkdown .ProseMirror th > p {
-    min-height: 1.2em;
-}
-
-.milkdown .ProseMirror th {
-    background: rgba(128, 128, 128, 0.08);
-    font-weight: 600;
-}
-
-.milkdown .ProseMirror tbody tr:nth-child(even) td {
-    background: var(
-        --vscode-editor-lineHighlightBackground,
-        rgba(128, 128, 128, 0.04)
-    );
-}
-
 /* 选中高亮 */
 .milkdown .ProseMirror ::selection {
     background: var(
@@ -597,36 +549,17 @@ body.epytor-modifier-active .milkdown .ProseMirror a:hover {
     );
 }
 
-/* ─── 表格单元格范围选择（prosemirror-tables CellSelection）─── */
-.milkdown .ProseMirror .selectedCell {
-    position: relative;
-    background: rgba(52, 211, 153, 0.15) !important;
-}
 
-.milkdown .ProseMirror .selectedCell::after {
-    content: "";
-    position: absolute;
-    inset: -1px;
-    border: 2px solid rgba(52, 211, 153, 0.6);
-    pointer-events: none;
-    z-index: 1;
+/* ─── 表格：按钮形状 + 背景 ───────────────────────────────── */
+.milkdown .milkdown-table-block .cell-handle {
+    background-color: var(--vscode-editor-background);
+    border-radius: 6px;
 }
-
-/* 列宽拖拽手柄 */
-.milkdown .ProseMirror .column-resize-handle {
-    position: absolute;
-    right: -2px;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-    background: var(--vscode-focusBorder, #007acc);
-    cursor: col-resize;
-    z-index: 20;
+.milkdown .milkdown-table-block .cell-handle:hover {
+    background-color: var(--vscode-editorWidget-background);
 }
-
-.milkdown .ProseMirror.resize-cursor,
-.milkdown .ProseMirror.resize-cursor * {
-    cursor: col-resize !important;
+.milkdown .milkdown-table-block .line-handle .add-button {
+    border-radius: 4px;
 }
 
 /* 光标 */
@@ -666,3 +599,4 @@ body.epytor-modifier-active .milkdown .ProseMirror a:hover {
     pointer-events: none;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.36);
 }
+

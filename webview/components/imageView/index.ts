@@ -47,7 +47,7 @@ type ViewMutationRecord = MutationRecord | { type: "selection"; target: Node };
 // ─── Lightbox ──────────────────────────────────────────────
 let activeLightbox: HTMLElement | null = null;
 
-function showGlobalLightbox(src: string, alt: string): void {
+export function showGlobalLightbox(src: string, alt: string): void {
     if (activeLightbox) {
         return;
     }
@@ -153,12 +153,36 @@ export function createImageView(
     const wrapper = document.createElement("div");
     wrapper.className = "image-wrapper";
 
+    // ── ratio 编解码（存储在 title 末尾，不修改 schema）──────
+    const RATIO_RE = /\s*ratio:([\d.]+)\s*$/;
+    function parseRatio(title: string): { clean: string; ratio: number } {
+        const m = title.match(RATIO_RE);
+        return m ? { clean: title.replace(RATIO_RE, "").trim(), ratio: parseFloat(m[1]) || 1 } : { clean: title, ratio: 1 };
+    }
+    function encodeRatio(title: string, ratio: number): string {
+        if (ratio === 1) return title;
+        const { clean } = parseRatio(title);
+        const r = `ratio:${ratio.toFixed(2)}`;
+        return clean ? `${clean} ${r}` : r;
+    }
+
+    let currentRatio = parseRatio((node.attrs["title"] as string) ?? "").ratio;
+
     // ── 图片 ──────────────────────────────────────────────────
     const img = document.createElement("img");
     img.className = "image-node";
     img.src = (node.attrs["src"] as string) ?? "";
     img.alt = (node.attrs["alt"] as string) ?? "";
     img.draggable = false;
+    let imgNaturalH = 0;
+
+    function applyRatio(): void {
+        if (imgNaturalH <= 0) imgNaturalH = img.naturalHeight || 0;
+        if (imgNaturalH <= 0) return;
+        if (currentRatio === 1) { img.style.height = ""; return; }
+        img.style.height = `${Math.round(imgNaturalH * currentRatio)}px`;
+        img.style.width = "";
+    }
 
     // ── 加载中占位符 ──────────────────────────────────────────
     let imgErrored = false;
@@ -182,16 +206,60 @@ export function createImageView(
 
     img.addEventListener("load", () => {
         imgLoaded = true;
+        imgNaturalH = img.naturalHeight;
         loadingPlaceholder.style.display = "none";
         if (imgErrored) {
             imgErrored = false;
             img.style.display = "";
             errorPlaceholder.style.display = "none";
         }
+        applyRatio();
     });
 
     // 初始显示加载中（图片稍后自然触发 load/error 切换）
     loadingPlaceholder.style.display = "flex";
+
+    // ── Caption 显示（图片下方说明文字）─────────────────────────
+    const captionEl = document.createElement("div");
+    captionEl.className = "image-caption";
+    captionEl.textContent = parseRatio((node.attrs["title"] as string) ?? "").clean;
+    captionEl.addEventListener("mousedown", (e) => {
+        // 双击 caption 进入编辑
+        if (e.detail === 2) { e.preventDefault(); startCaptionEdit(); }
+    });
+
+    // ── 缩放 handle ─────────────────────────────────────────────
+    const resizeHandle = document.createElement("div");
+    resizeHandle.className = "img-resize-handle";
+    let resizeStartY = 0, resizeStartH = 0;
+
+    resizeHandle.addEventListener("pointerdown", (e) => {
+        e.preventDefault(); e.stopPropagation();
+        resizeStartY = e.clientY;
+        resizeStartH = img.getBoundingClientRect().height || imgNaturalH;
+        document.body.style.cursor = "nwse-resize";
+        window.addEventListener("pointermove", onResizeMove);
+        window.addEventListener("pointerup", onResizeUp);
+    });
+    function onResizeMove(e: PointerEvent) {
+        const h = Math.max(40, Math.min(window.innerHeight * 0.8, resizeStartH + (e.clientY - resizeStartY)));
+        img.style.height = `${h}px`;
+    }
+    function onResizeUp() {
+        window.removeEventListener("pointermove", onResizeMove);
+        window.removeEventListener("pointerup", onResizeUp);
+        document.body.style.cursor = "";
+        const h = parseFloat(img.style.height) || imgNaturalH;
+        if (imgNaturalH <= 0 || h <= 0) return;
+        currentRatio = parseFloat((h / imgNaturalH).toFixed(2));
+        const pos = getPos();
+        if (pos === undefined) return;
+        const newTitle = encodeRatio((currentNode.attrs["title"] as string) ?? "", currentRatio);
+        view.dispatch(view.state.tr.setNodeMarkup(pos, null, {
+            ...currentNode.attrs,
+            title: newTitle,
+        }));
+    }
 
     // ── 工具栏 ────────────────────────────────────────────────
     const toolbar = document.createElement("div");
@@ -206,16 +274,16 @@ export function createImageView(
         showGlobalLightbox(img.src, img.alt);
     });
 
-    // Alt 文本编辑
-    const altBtn = createButton({
+    // Caption 编辑（存到 title，和 ratio 共存）
+    const captionBtn = createButton({
         className: "img-tb-btn",
         tabIndex: -1,
-        label: "ALT",
-        title: t("Edit Alt Text"),
+        label: "CAP",
+        title: t("Edit Caption"),
         tooltipPlacement: "above",
-        onClick: () => startAltEdit(),
+        onClick: () => startCaptionEdit(),
     });
-    altBtn.style.fontWeight = "600";
+    captionBtn.style.fontWeight = "600";
 
     // 铅笔图标：常驻，点击编辑图片路径（src 属性）
     const renameBtn = makeBtn(IconPencil, t("Edit Image Path"));
@@ -250,12 +318,12 @@ export function createImageView(
 
     let currentInfoEl: HTMLElement = infoSpan;
 
-    function updateInfo(src: string, alt: string): void {
+    function updateInfo(src: string, _alt: string): void {
         const name = src.split("/").pop() ?? src;
-        const display = alt ? `${name} · ${alt}` : name;
+        const caption = parseRatio((currentNode.attrs["title"] as string) ?? "").clean;
+        const display = caption ? `${name} · ${caption}` : name;
         infoSpan.textContent = display;
         infoSpan.title = display;
-        // 仅在 input 未获得焦点时同步（避免覆盖用户正在编辑的内容）
         if (document.activeElement !== infoInput) {
             infoInput.value = basenameNoExt(src);
             infoInput.title = name;
@@ -316,13 +384,15 @@ export function createImageView(
     toolbar.appendChild(makeSep());
     toolbar.appendChild(zoomBtn);
     toolbar.appendChild(makeSep());
-    toolbar.appendChild(altBtn);
+    toolbar.appendChild(captionBtn);
     toolbar.appendChild(makeSep());
     toolbar.appendChild(renameBtn);     // 常驻
     toolbar.appendChild(makeSep());
     toolbar.appendChild(deleteBtn);
 
     wrapper.appendChild(img);
+    wrapper.appendChild(captionEl);
+    wrapper.appendChild(resizeHandle);
     wrapper.appendChild(loadingPlaceholder);
     wrapper.appendChild(errorPlaceholder);
     wrapper.appendChild(toolbar);
@@ -332,19 +402,18 @@ export function createImageView(
     updateInfo(rawSrc, img.alt);
     updateInfoElement(rawSrc); // 可能将 infoSpan 替换为 infoInput
 
-    // ── Alt 文本内联编辑 ──────────────────────────────────────
-    let isEditingAlt = false;
+    // ── Caption 内联编辑（存 title，和 ratio 共存）──────────
+    let isEditingCaption = false;
 
-    function startAltEdit(): void {
-        if (isEditingAlt) {
-            return;
-        }
-        isEditingAlt = true;
+    function startCaptionEdit(): void {
+        if (isEditingCaption) return;
+        isEditingCaption = true;
 
+        const caption = parseRatio((currentNode.attrs["title"] as string) ?? "").clean;
         const input = document.createElement("input");
         input.className = "img-rename-input";
-        input.value = img.alt;
-        input.placeholder = t("Alt text");
+        input.value = caption;
+        input.placeholder = t("Caption");
         input.style.width = "160px";
         isolateInput(input);
 
@@ -352,11 +421,7 @@ export function createImageView(
         confirmBtn.style.color = "var(--vscode-charts-green, #4caf50)";
         const cancelBtn = createButton({ className: "img-tb-btn", tabIndex: -1, icon: IconX, onClick: cancel });
 
-        // 暂时隐藏其他按钮
-        Array.from(toolbar.children).forEach((el) => {
-            (el as HTMLElement).style.display = "none";
-        });
-
+        Array.from(toolbar.children).forEach((el) => { (el as HTMLElement).style.display = "none"; });
         toolbar.appendChild(input);
         toolbar.appendChild(confirmBtn);
         toolbar.appendChild(cancelBtn);
@@ -365,42 +430,36 @@ export function createImageView(
         setupInputKeyboard(input, confirm, cancel);
 
         function confirm(): void {
-            if (!isEditingAlt) {
-                return;
-            }
-            isEditingAlt = false;
-            const newAlt = input.value.trim();
-            cleanupAlt();
-            if (newAlt !== currentNode.attrs["alt"]) {
+            if (!isEditingCaption) return;
+            isEditingCaption = false;
+            const newCaption = input.value.trim();
+            cleanup();
+            if (newCaption !== caption) {
                 const pos = getPos();
                 if (pos !== undefined) {
-                    view.dispatch(
-                        view.state.tr.setNodeMarkup(pos, null, {
-                            ...currentNode.attrs,
-                            alt: newAlt,
-                        }),
-                    );
+                    const newTitle = encodeRatio(newCaption, currentRatio);
+                    captionEl.textContent = newCaption;
+                    view.dispatch(view.state.tr.setNodeMarkup(pos, null, {
+                        ...currentNode.attrs,
+                        title: newTitle,
+                    }));
                 }
             }
             view.focus();
         }
 
         function cancel(): void {
-            if (!isEditingAlt) {
-                return;
-            }
-            isEditingAlt = false;
-            cleanupAlt();
+            if (!isEditingCaption) return;
+            isEditingCaption = false;
+            cleanup();
             view.focus();
         }
 
-        function cleanupAlt(): void {
+        function cleanup(): void {
             toolbar.removeChild(input);
             toolbar.removeChild(confirmBtn);
             toolbar.removeChild(cancelBtn);
-            Array.from(toolbar.children).forEach((el) => {
-                (el as HTMLElement).style.display = "";
-            });
+            Array.from(toolbar.children).forEach((el) => { (el as HTMLElement).style.display = ""; });
         }
     }
 
@@ -504,38 +563,40 @@ export function createImageView(
             const newAlt = (updatedNode.attrs["alt"] as string) ?? "";
             if (rawSrc !== newSrc) {
                 rawSrc = newSrc;
-                // 重置加载状态
                 imgLoaded = false;
                 imgErrored = false;
+                imgNaturalH = 0;
                 loadingPlaceholder.style.display = "flex";
                 errorPlaceholder.style.display = "none";
                 img.src = newSrc;
                 updateInfoElement(newSrc);
             }
+            const newTitle = (updatedNode.attrs["title"] as string) ?? "";
+            const { ratio: parsedRatio, clean: caption } = parseRatio(newTitle);
+            captionEl.textContent = caption;
+            if (currentRatio !== parsedRatio) {
+                currentRatio = parsedRatio;
+                if (imgNaturalH > 0) applyRatio();
+            }
             if (img.alt !== newAlt) {
                 img.alt = newAlt;
             }
-            updateInfo(rawSrc, newAlt);
             currentNode = updatedNode;
+            updateInfo(rawSrc, newAlt);
             return true;
         },
 
         selectNode(): void {
             wrapper.classList.add("image-wrapper--selected");
             toolbar.style.display = "flex";
-
-            // 检查工具栏是否超出视口顶部，若超出则改为显示在图片下方
-            const rect = wrapper.getBoundingClientRect();
-            if (rect.top < 60) {
-                toolbar.classList.add("image-toolbar--below");
-            } else {
-                toolbar.classList.remove("image-toolbar--below");
-            }
+            resizeHandle.classList.add("img-resize-handle--visible");
+            toolbar.classList.add("image-toolbar--below");
         },
 
         deselectNode(): void {
             wrapper.classList.remove("image-wrapper--selected");
             toolbar.style.display = "none";
+            resizeHandle.classList.remove("img-resize-handle--visible");
         },
 
         stopEvent(e: Event): boolean {

@@ -38,7 +38,15 @@ export function setLogTableSel(enabled: boolean): void {
 // feature/code-mirror → 换回自定义实现（复制反馈、全屏、样式更精致）
 import { codeMirror } from "@milkdown/crepe/feature/code-mirror";
 import { latex } from "@milkdown/crepe/feature/latex";
+import { listItem } from "@milkdown/crepe/feature/list-item";
+import { table } from "@milkdown/crepe/feature/table";
+import { Compartment } from "@codemirror/state";
+import { EditorView as CMEditorView } from "@codemirror/view";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { defaultHighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { languages as allCodeLanguages } from "@codemirror/language-data";
+import mermaid from "mermaid";
+import { onThemeChange } from "./utils/themeBus";
 
 // 只保留常用语言（143 → ~40）
 const WANTED_LANGS = new Set([
@@ -217,6 +225,7 @@ function getCellCoords(doc: any, pos: number): { row: number; col: number } | nu
 
 const cellClickFixPlugin = $prose(() => {
     let pendingClickPos: number | null = null;
+    let cellClickTarget: number | null = null; // 表格单击位置，不受 mouseup 清理影响
     let clickIsPlain = true;
     let wasCrossCell = false;
     let lastGoodCellSelection: CellSelection | null = null;
@@ -241,6 +250,7 @@ const cellClickFixPlugin = $prose(() => {
                     if (!cell) { pendingClickPos = null; return false; }
                     const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
                     pendingClickPos = pos ? pos.pos : null;
+                    cellClickTarget = pos ? pos.pos : null;
                     clickIsPlain = true;
                     wasCrossCell = false;
                     lastGoodCellSelection = null;
@@ -261,7 +271,6 @@ const cellClickFixPlugin = $prose(() => {
                             pendingClickPos = null;
                             clickIsPlain = true;
                             wasCrossCell = false;
-                            { /* debug logging removed */ }
                             const savedCellSel = lastGoodCellSelection;
                             setTimeout(() => { if (lastGoodCellSelection === savedCellSel) lastGoodCellSelection = null; }, 200);
                         } else {
@@ -274,6 +283,31 @@ const cellClickFixPlugin = $prose(() => {
             },
         },
         filterTransaction(tr, state) {
+            // 原生表格单击→NodeSelection（单元格内段落）→拦截并转为光标定位
+            if (tr.selection instanceof NodeSelection) {
+                try {
+                    const $pos = state.doc.resolve(Math.min(tr.selection.from, state.doc.content.size));
+                    for (let d = $pos.depth; d >= 0; d--) {
+                        const t = $pos.node(d).type.name;
+                        if (t === "table_cell" || t === "table_header") {
+                            // 在 Crepe rAF 内被拦截；再套一层 rAF 补 TextSelection
+                            const clickPos = cellClickTarget;
+                            cellClickTarget = null;
+                            requestAnimationFrame(() => {
+                                const v = capturedView;
+                                if (!v) return;
+                                const sel = v.state.selection;
+                                if (sel instanceof TextSelection && sel.from === sel.to) return; // 已有光标
+                                try {
+                                    const p = Math.min(clickPos ?? tr.selection.from, v.state.doc.content.size);
+                                    v.dispatch(v.state.tr.setSelection(TextSelection.near(v.state.doc.resolve(p))));
+                                } catch { /* ignore */ }
+                            });
+                            return false;
+                        }
+                    }
+                } catch { /* ignore */ }
+            }
             if (!lastGoodCellSelection) return true;
             if (state.selection instanceof CellSelection && !(tr.selection instanceof CellSelection)) {
                 return false;
@@ -283,32 +317,37 @@ const cellClickFixPlugin = $prose(() => {
         appendTransaction(_trs, _oldState, newState) {
             if (pendingClickPos === null) return null;
             const sel = newState.selection;
-            if (!(sel instanceof CellSelection) || sel.isRowSelection() || sel.isColSelection()) return null;
-            if (sel.$anchorCell.pos !== sel.$headCell.pos) {
-                wasCrossCell = true;
-                lastGoodCellSelection = sel;
-                return null;
-            }
-            try {
-                if (!clickIsPlain && capturedView) {
-                    const toCoords = capturedView.posAtCoords({ left: lastMouseX, top: lastMouseY });
-                    if (toCoords) {
-                        const anchorP = Math.min(pendingClickPos, newState.doc.content.size);
-                        const headP = Math.min(toCoords.pos, newState.doc.content.size);
-                        try {
-                            const $a = newState.doc.resolve(anchorP);
-                            const $h = newState.doc.resolve(headP);
-                            let aCellStart = -1, hCellStart = -1;
-                            for (let d = $a.depth; d >= 0; d--) { if ($a.node(d).type.name === "table_cell" || $a.node(d).type.name === "table_header") { aCellStart = $a.start(d); break; } }
-                            for (let d = $h.depth; d >= 0; d--) { if ($h.node(d).type.name === "table_cell" || $h.node(d).type.name === "table_header") { hCellStart = $h.start(d); break; } }
-                            if (aCellStart !== hCellStart) return null;
-                        } catch { /* ignore */ }
-                        return newState.tr.setSelection(TextSelection.create(newState.doc, anchorP, headP));
-                    }
+            const $pos = newState.doc.resolve(Math.min(pendingClickPos, newState.doc.content.size));
+
+            // 单格 CellSelection → 转 TextSelection
+            if (sel instanceof CellSelection) {
+                if (sel.isRowSelection() || sel.isColSelection()) return null;
+                if (sel.$anchorCell.pos !== sel.$headCell.pos) {
+                    wasCrossCell = true;
+                    lastGoodCellSelection = sel;
+                    return null;
                 }
-                const $pos = newState.doc.resolve(Math.min(pendingClickPos, newState.doc.content.size));
-                return newState.tr.setSelection(TextSelection.near($pos));
-            } catch { return null; }
+                try {
+                    if (!clickIsPlain && capturedView) {
+                        const toCoords = capturedView.posAtCoords({ left: lastMouseX, top: lastMouseY });
+                        if (toCoords) {
+                            const headP = Math.min(toCoords.pos, newState.doc.content.size);
+                            try {
+                                const $a = newState.doc.resolve(Math.min(pendingClickPos, newState.doc.content.size));
+                                const $h = newState.doc.resolve(headP);
+                                let aCellStart = -1, hCellStart = -1;
+                                for (let d = $a.depth; d >= 0; d--) { if ($a.node(d).type.name === "table_cell" || $a.node(d).type.name === "table_header") { aCellStart = $a.start(d); break; } }
+                                for (let d = $h.depth; d >= 0; d--) { if ($h.node(d).type.name === "table_cell" || $h.node(d).type.name === "table_header") { hCellStart = $h.start(d); break; } }
+                                if (aCellStart !== hCellStart) return null;
+                            } catch { /* ignore */ }
+                            return newState.tr.setSelection(TextSelection.create(newState.doc, headP, Math.min(pendingClickPos, newState.doc.content.size)));
+                        }
+                    }
+                    return newState.tr.setSelection(TextSelection.near($pos));
+                } catch { return null; }
+            }
+
+            return null;
         },
     });
 });
@@ -409,7 +448,7 @@ function applyMinimalChanges(saved: string, serialized: string): string {
     return result.join('\n');
 }
 
-// ─── 自定义视图组件（Crepe 不覆盖的部分）─────────────────────────────────────
+// ─── 自定义视图组件 ─────────────────────────────────────────
 
 import { createImageView } from "./components/imageView";
 
@@ -477,8 +516,63 @@ export async function createEditor(
     });
 
     // Phase 3: 启用 Crepe 原生功能（替换自定义实现 + 新增能力）
+    // ── 主题切换总线 ────────────────────────────────────────
+    const cmTheme = new Compartment();
+    const getCMTheme = (dark: boolean) => dark ? oneDark : syntaxHighlighting(defaultHighlightStyle);
+
+    const reconfigureAllCM = () => {
+        document.querySelectorAll(".cm-editor").forEach((el) => {
+            const v = CMEditorView.findFromDOM(el as HTMLElement);
+            if (v) v.dispatch({ effects: cmTheme.reconfigure(getCMTheme(isDark)) });
+        });
+    };
+
+    // 监听新 CodeMirror 编辑器创建（补配主题）
+    const cmObserver = new MutationObserver(() => {
+        if (document.querySelector(".cm-editor")) setTimeout(reconfigureAllCM, 10);
+    });
+    cmObserver.observe(container, { childList: true, subtree: true });
+
+    // 主题切换：CodeMirror + Mermaid 全部统一处理
+    let isDark = true;
+    const mermaidCodeMap = new Map<string, string>();
+    let mermaidSeq = 0;
+
+    const renderMermaid = (code: string): Promise<string> => {
+        const id = "mermaid-" + Math.random().toString(36).slice(2, 8);
+        return mermaid.render(id, code).then(({ svg }) => svg);
+    };
+
+    onThemeChange((dark) => {
+        isDark = dark;
+        mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "default" });
+        // 重绘已有 mermaid 预览
+        mermaidCodeMap.forEach((code, key) => {
+            const el = document.querySelector<HTMLElement>(`[data-mermaid-key="${key}"]`);
+            if (el) renderMermaid(code).then((svg) => { el.innerHTML = svg; }).catch(() => {});
+        });
+        // 重配 CodeMirror
+        reconfigureAllCM();
+    });
+
+    // Mermaid 预览渲染
+    const renderPreview = (lang: string, code: string, apply: (v: string | null) => void) => {
+        if (lang !== "mermaid") { apply(null); return; }
+        const key = `m-${++mermaidSeq}`;
+        mermaidCodeMap.set(key, code);
+        apply(`<div data-mermaid-key="${key}"></div>`);
+        const el = () => document.querySelector(`[data-mermaid-key="${key}"]`);
+        renderMermaid(code).then((svg) => { const e = el(); if (e) e.innerHTML = svg; }).catch(() => {});
+    };
+
     crepe
-        .addFeature(codeMirror, { languages: codeLanguages })
+        .addFeature(codeMirror, {
+            languages: codeLanguages,
+            theme: cmTheme.of(getCMTheme()),
+            renderPreview,
+        })
+        .addFeature(listItem)
+        .addFeature(table)
         .addFeature(latex);       // 全新：KaTeX 数学公式
     // feature/toolbar 暂时禁用（与自定义工具栏冲突，后续整合）
 
@@ -487,7 +581,7 @@ export async function createEditor(
         .config((ctx) => {
             _savedMarkdown = initialMarkdown;
 
-            // 注册自定义 NodeView
+            // 注册自定义 image NodeView
             ctx.set(nodeViewCtx, [
                 [
                     "image",
