@@ -57,4 +57,4 @@
 
 ***
 
-<img src="./images/icon.png" width="48" align="right" alt="EPYTOR">  ***EPYTOR, Coding with DeepSeek V4 Pro powered by Claude Code.***
+<img src="./images/icon.png" width="48" alt="EPYTOR">  ***EPYTOR, Coding with DeepSeek V4 Pro powered by Claude Code.***
