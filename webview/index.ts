@@ -29,6 +29,7 @@ import {
     notifyWordCount,
     notifyOpenUrl,
     notifyOpenFile,
+    notifyOpenSettings,
     getWebviewState,
     setWebviewState,
 } from "./messaging";
@@ -401,7 +402,9 @@ if (editorContainer) {
 	            });
 	        });
 	    }, true);
-	    setupPathLink(editorContainer);
+	    document.addEventListener('epytor:insertImage', () => notifyGetProjectImages('toolbar'));
+    document.addEventListener('epytor:openSettings', () => notifyOpenSettings());
+    setupPathLink(editorContainer);
     initHeadingIds(editorContainer);
     initPathComplete(() => getEditorView());
     enhanceCodeBlocks(editorContainer);

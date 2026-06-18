@@ -31,10 +31,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 | 功能 | 说明 |
 |------|------|
 | **发送到 Claude** | 从选中工具栏移除 |
-| **Undo/Redo 按钮** | 待后续加回 |
-| **图片插入按钮** | 待后续加回 |
-| **清除格式按钮** | 待后续加回 |
-| **设置按钮** | 待后续加回 |
+| **Undo/Redo 按钮** | ✅ 已加回（Crepe `buildTopBar` API） |
+| **图片插入按钮** | ✅ 已加回（Crepe `buildTopBar` API） |
+| **清除格式按钮** | ✅ 已加回（Crepe `buildTopBar` API） |
+| **设置按钮** | ✅ 已加回（Crepe `buildTopBar` API） |
 | **选中工具栏标题选择器** | Crepe `feature/toolbar` 不含此功能 |
 | **表格拖拽重排行/列** | Crepe `feature/table` 不支持拖拽排序 |
 

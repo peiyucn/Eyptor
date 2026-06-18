@@ -23,6 +23,7 @@ import { CellSelection, TableMap } from "@milkdown/kit/prose/tables";
 import { $prose } from "@milkdown/kit/utils";
 import { CrepeBuilder } from "@milkdown/crepe";
 import { linkTooltip } from "@milkdown/crepe/feature/link-tooltip";
+import { IconUndo, IconRedo, IconImage, IconEraser, IconSettings } from "@/ui/icons";
 
 // 调试日志开关（由 index.ts setDebugMode 消息驱动）
 let logTableSel = false;
@@ -593,6 +594,56 @@ export async function createEditor(
                 { label: 'H5', level: 5 },
                 { label: 'H6', level: 6 },
             ],
+            buildTopBar: (builder: any) => {
+                // Undo / Redo 组（最前）
+                builder.addGroup('history', '').addItem('undo', {
+                    icon: IconUndo as any,
+                    active: (ctx: any) => undo(ctx.get(editorViewCtx).state),
+                    onRun: (ctx: any) => { const v = ctx.get(editorViewCtx); undo(v.state, v.dispatch, v); },
+                } as any).addItem('redo', {
+                    icon: IconRedo as any,
+                    active: (ctx: any) => redo(ctx.get(editorViewCtx).state),
+                    onRun: (ctx: any) => { const v = ctx.get(editorViewCtx); redo(v.state, v.dispatch, v); },
+                } as any);
+                // 图片插入（insert 组）
+                builder.getGroup('insert').addItem('image', {
+                    icon: IconImage as any,
+                    active: () => false,
+                    onRun: (ctx: any) => {
+                        ctx.get(editorViewCtx).dom.dispatchEvent(new CustomEvent('epytor:insertImage', { bubbles: true }));
+                    },
+                } as any);
+                // 清除格式 + 设置（more 组末尾）
+                builder.getGroup('more').addItem('clear-format', {
+                    icon: IconEraser as any,
+                    active: (ctx: any) => {
+                        const v = ctx.get(editorViewCtx);
+                        const { from, to } = v.state.selection;
+                        let has = false;
+                        v.state.doc.nodesBetween(from, to, (n: any) => { if (n.marks.length) { has = true; return false; } return true; });
+                        return has;
+                    },
+                    onRun: (ctx: any) => {
+                        const v = ctx.get(editorViewCtx);
+                        const { from, to } = v.state.selection;
+                        const tr = v.state.tr;
+                        v.state.doc.nodesBetween(from, to, (n: any, pos: number) => {
+                            if (n.marks.length) {
+                                const s = Math.max(pos, from);
+                                const e = Math.min(pos + n.nodeSize, to);
+                                n.marks.forEach((m: any) => tr.removeMark(s, e, m.type));
+                            }
+                        });
+                        v.dispatch(tr);
+                    },
+                } as any).addItem('settings', {
+                    icon: IconSettings as any,
+                    active: () => false,
+                    onRun: () => {
+                        document.dispatchEvent(new CustomEvent('epytor:openSettings', { bubbles: true }));
+                    },
+                } as any);
+            },
         })
         .addFeature(toolbar)
         .addFeature(table)
