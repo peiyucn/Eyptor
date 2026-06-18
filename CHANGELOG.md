@@ -5,49 +5,62 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## \[1.1.0] - 2026-06-18
 
-### Added
+### 架构升级
 
-- **LaTeX math formulas**: inline `$...$` and block `$$...$$` via Crepe `feature/latex` (KaTeX + CodeMirror editing)
-- **Brand mark**: "EPYTOR🦖" displayed at the top-left toolbar corner (pure CSS)
-- **Test document**: `test.md` covering headings, inline styles, lists, tables, code blocks, Mermaid, LaTeX, quotes, links, images, and more
+- **Milkdown**: 7.5.x → 7.21.2, `Editor.make()` → `CrepeBuilder`
+- **代码高亮**: Prism → CodeMirror 6（内置语法高亮、搜索替换、全屏编辑）
+- **Vue 3**：Crepe 内部使用 Vue 渲染 UI 组件
+- **删除**: 11 个文件，6,057 行；净减 ~2,400 行
 
-### Changed
+### 新增 / 增强
 
-- **Architecture upgrade**: Milkdown 7.5.x → 7.21.2, `Editor.make()` → `CrepeBuilder`, Prism → CodeMirror 6
-- **Link popup**: custom `linkPopup` (679 lines) replaced by Crepe `feature/link-tooltip`; VSCode-themed CSS
-- **Top bar**: sticky `position: fixed` with frosted glass (`backdrop-filter: blur`); unified button size (24×24px, 3px radius)
-- **Selection toolbar**: frosted glass background, compact buttons matching top bar style
-- **Table**: custom table UI (1,562 lines) replaced by Crepe `feature/table`; single-click to cursor fix
-- **Code block**: custom Prism-based NodeView (1,909 lines) replaced by Crepe `feature/code-mirror`; preview toggle, copy feedback, fullscreen, consistent button order via CSS `order`
-- **Toolbar**: custom toolbar (1,825 lines) replaced by Crepe `feature/top-bar` + `feature/toolbar`; heading labels abbreviated to P/H1–H6
-- **TOC panel**: positioned below top bar (`top: 36px`), frosted glass, full-height toggle strip; when pinned, toolbar shifts via `paddingLeft` (background stays full-width)
-- **Image**: resize handle (L‑shaped, CSS cursor), simplified toolbar, auto-width rename input
-- **Lists**: indent controlled via `.milkdown-list-item-block` (Crepe uses `<div>` not `<ul>`)
-- **Mermaid**: case-insensitive language tag, unified theme switching with CodeMirror
-- **Font stack**: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system sans-serif fallback
-- CSS `!important` overrides moved to Crepe CSS variables (`--crepe-color-*` → `--vscode-*`) for theme compatibility
+| 功能 | v1.0.1 | v1.1.0 |
+|------|--------|--------|
+| **LaTeX 数学公式** | ❌ | ✅ `feature/latex`（KaTeX + CodeMirror 编辑） |
+| **代码块** | Prism 高亮 | CodeMirror 6 + 预览切换 + 复制反馈 + 全屏 + 深浅主题 |
+| **图片缩放** | ❌ | ✅ 右下角 L 形 handle 拖拽缩放 |
+| **图片说明** | ❌ | ✅ Caption 编辑 |
+| **链接弹窗** | 自定义 679 行 | Crepe `feature/link-tooltip`（只输 URL） |
+| **工具栏毛玻璃** | ❌ | ✅ 吸顶 + `backdrop-filter: blur` |
+| **品牌标识** | ❌ | ✅ 左上角 "EPYTOR🦖"（纯 CSS） |
+| **TOC 面板** | 吸顶 `top: 0` | 对齐工具栏下方 `top: 36px` + 毛玻璃 |
+| **Mermaid** | 源码 ←→ 预览 | 统一深浅主题 + 大小写不敏感 |
 
-### Removed
+### 移除
 
-- `webview/components/codeBlock/` (1,909 lines) → Crepe `feature/code-mirror`
-- `webview/components/linkPopup/` (679 lines) → Crepe `feature/link-tooltip`
-- `webview/components/table/` (1,562 lines) → Crepe `feature/table`
-- `webview/components/toolbar/` (1,825 lines) → Crepe `feature/top-bar` + `feature/toolbar`
-- `webview/highlighter.ts` (82 lines) → CodeMirror 6 syntax highlighting
-- **Total**: 6,057 lines removed, ~2,400 net reduction
+| 功能 | 说明 |
+|------|------|
+| **发送到 Claude** | 从选中工具栏移除 |
+| **Undo/Redo 按钮** | 待后续加回 |
+| **图片插入按钮** | 待后续加回 |
+| **清除格式按钮** | 待后续加回 |
+| **设置按钮** | 待后续加回 |
+| **选中工具栏标题选择器** | Crepe `feature/toolbar` 不含此功能 |
+| **表格拖拽重排行/列** | Crepe `feature/table` 不支持拖拽排序 |
 
-### Fixed
+### 表格功能对比
 
-- Empty table cells serialized with `<br />` in Markdown source (`test.md` cleaned)
-- Code block language selector freeze (invalid `load: async () => undefined`)
-- Mermaid preview not showing with capital "Mermaid" language tag
-- Heading selector dropdown width not matching button width
-- Link click navigation in VSCode WebView (capture-phase `preventDefault` + `stopImmediatePropagation`)
-- Link tooltip staying visible on scroll (`pointerleave` dispatch)
+| 能力 | v1.0.1 | v1.1.0 |
+|------|--------|--------|
+| GFM 表格 | ✅ | ✅ |
+| 插入/删除行、列 | ✅ | ✅ |
+| 列对齐（左/中/右） | ✅ | ✅ |
+| 拖拽排序列 | ✅ | ❌（Crepe 不支持） |
+| 拖拽排排行 | ✅ | ❌（Crepe 不支持） |
+| 单击选中整行/列 | ✅ | ❌（单击→光标定位） |
 
-### Known Limitations
+### 修复
 
-- Ordered list multi-level numbering: all levels use decimal (1. 2. 3.) — Milkdown kernel limitation, tracked as `known-limitation`
+- 代码块语言选择器卡死
+- Mermaid 大写 "Mermaid" 无法渲染预览
+- 标题下拉框宽度不对齐按钮
+- 点击链接在 WebView 中跳转
+- 链接 tooltip 滚动时不消失
+- test.md 表格 `<br />` 残留、列表缩进、缺失代码块
+
+### 已知限制
+
+- 有序列表多层级编号：全部十进制，不区分 a.b.c. / i.ii.iii.（Milkdown 内核限制）
 
 ## \[1.0.1] - 2026-06-16
 

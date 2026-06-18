@@ -16,7 +16,7 @@
 - **诚实原则**：不确定的事直接说"不确定"，禁止编造 URL、issue 编号、API 接口、文档引用或任何事实性信息。如果引用外部资源，必须先验证其存在。
 - **优雅原则**：禁止 hack 式或补丁式写法（如硬编码字符串映射表、MutationObserver 改 DOM、多层覆写对抗框架默认行为）。优先使用框架/库的官方 API、CSS 变量、配置回调等正路方案，保持代码简洁可维护。
 
-***
+---
 
 ## 关键文件速查
 
@@ -44,7 +44,7 @@ docs/specs/                              — 功能 spec 文档
 docs/roadmap.md                          — 项目路线图
 ```
 
-***
+---
 
 ## 架构约束
 
@@ -53,7 +53,7 @@ docs/roadmap.md                          — 项目路线图
 - CSS 必须使用 `--vscode-*` 变量以适配亮/暗主题
 - 不在模块外部维护全局状态（单例除外，如 editor view）
 
-***
+---
 
 ## 开发留痕规范
 
@@ -70,7 +70,7 @@ docs/roadmap.md                          — 项目路线图
 
 ### 更新 `~/.claude/projects/-Users-liuyaoming-code-vsocde-expand-markdownView/memory/MEMORY.md` 中的"当前状态"
 
-***
+---
 
 ## 测试规范
 
@@ -121,17 +121,20 @@ __mocks__/vscode.ts      — vscode API 统一 mock
 ### 强制流程
 
 #### 功能开发后
+
 1. 编写对应单元测试（核心逻辑、边界值、异常路径各至少一个用例）
 2. 运行 `pnpm test` 确认全部通过
 3. 运行 `pnpm build` 确认编译无误
 4. 方可 `git commit`
 
 #### Bug 修复后
+
 1. 先补充**能复现该 bug 的测试用例**（写在修复同一 commit 内）
 2. 确认该用例在修复前失败、修复后通过
 3. 运行 `pnpm test` 确认全套通过后方可提交
 
 #### git push 前
+
 - **必须**执行 `pnpm test`，全部通过才允许推送
 - CI 的 `unit-test` job 会在每次 push/PR 时自动运行（`.github/workflows/ci.yml`），失败则阻断构建
 
@@ -148,6 +151,7 @@ __mocks__/vscode.ts      — vscode API 统一 mock
 ```
 
 **禁止行为**：
+
 - 禁止跳过（`it.skip`）或注释失败的测试用例来让 CI 通过
 - 禁止修改测试预期值来掩盖 bug（除非实现有意变更且经过评审）
 - 禁止在未运行测试的情况下 push 到 `main` 或 `dev` 分支
@@ -159,7 +163,7 @@ __mocks__/vscode.ts      — vscode API 统一 mock
 - 依赖时间的逻辑使用 `vi.useFakeTimers()` / `vi.useRealTimers()`，禁止 `setTimeout` 真实等待
 - 禁止测试 `private` 类方法，通过公共接口验证行为
 
-***
+---
 
 ## 自动保存设置
 
