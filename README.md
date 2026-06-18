@@ -54,4 +54,4 @@ A WYSIWYG Markdown editor for VS Code, powered by [Milkdown](https://milkdown.de
 
 ---
 
-![](./images/icon.png "ratio:0.09")  ***EPYTOR, Coding with DeepSeek V4 Pro powered by Claude Code.***
+<img src="./images/icon.png" width="48" align="right" alt="EPYTOR">  ***EPYTOR, Coding with DeepSeek V4 Pro powered by Claude Code.***

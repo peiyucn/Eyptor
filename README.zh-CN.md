@@ -53,8 +53,8 @@
 
 * 全局搜索跳转：多文件同时打开时可能无法精确定位
 
-* 部分扩展语法（脚注、内联 HTML 等）尚未支持
+* 部分扩展语法（脚注等）尚未支持
 
 ***
 
-![](./images/icon.png "ratio:0.09")  ***EPYTOR, Coding with DeepSeek V4 Pro powered by Claude Code.***
+<img src="./images/icon.png" width="48" align="right" alt="EPYTOR">  ***EPYTOR, Coding with DeepSeek V4 Pro powered by Claude Code.***
