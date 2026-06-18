@@ -37,6 +37,16 @@
 - [ ] **`capture: true` 事件监听**（5 处）— 依赖捕获阶段抢占 Crepe handler，升级 Crepe 可能失效。
 - [ ] **链接点击 `stopImmediatePropagation`**（[index.ts:371](../webview/index.ts#L371)）— 阻止 Crepe 默认跳转行为，脆弱。
 
+### 代码整洁
+
+- [ ] **图标已统一**：`editor.ts`/`index.ts` 行内 SVG 已迁移至 `icons.ts`（`Tb*` 工具栏格式 + `IconMaximize2`）。
+- [ ] **巨型函数拆分**：`setupSelectionToolbar`（553 行）、`createImageView`（498 行）、`initToc`（392 行）、`resolveCustomEditor`（318 行）— 应拆为小函数或独立模块。
+- [ ] **下拉补全重复**：`pathComplete`、`imgPathComplete`、`imagePicker` 各自实现相同结构的下拉菜单，应提取 `createDropdown()` 到 `ui/dom.ts`。
+- [ ] **确认/取消编辑重复**：`imageView` 中 `startCaptionEdit` 和 `startSrcEdit` 80% 代码相同，应提取通用内联编辑模式。
+- [ ] **hover 弹出菜单重复**：`selectionToolbar` 格式下拉和对齐下拉结构一样，应提取 `createHoverMenu()` 到 `ui/dom.ts`。
+- [ ] **魔法数字**：顶栏高度 `36`/`40` 混用，滚动偏移 `8` 散落 7 处，CSS 选择器 `.milkdown-top-bar` 出现 10+ 次——应定义常量。
+- [ ] **空 catch 块**：12 处静默吞错误，至少应 `console.warn`。
+
 ### 工具链
 
 - [ ] **单元测试**：`webview/utils/themeBus.ts` 覆盖率 0%，需补齐。

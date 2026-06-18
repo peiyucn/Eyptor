@@ -23,13 +23,7 @@ import { CellSelection, TableMap } from "@milkdown/kit/prose/tables";
 import { $prose } from "@milkdown/kit/utils";
 import { CrepeBuilder } from "@milkdown/crepe";
 import { linkTooltip } from "@milkdown/crepe/feature/link-tooltip";
-// 自定义图标（描边 1.5px，视觉重量接近 Crepe 原生按钮）
-const SI = (d: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="fill:none!important"><g transform="matrix(0.88 0 0 0.88 1.5 1.5)">${d}</g></svg>`;
-const I_UNDO  = SI(`<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>`);
-const I_REDO  = SI(`<path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>`);
-const I_IMG   = SI(`<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>`);
-const I_ERASER = SI(`<path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c.9.9.9 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/>`);
-const I_GEAR  = SI(`<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>`);
+import { TbUndo, TbRedo, TbImage, TbEraser, TbGear } from "./ui/icons";
 
 // 调试日志开关（由 index.ts setDebugMode 消息驱动）
 let logTableSel = false;
@@ -605,17 +599,17 @@ export async function createEditor(
             buildTopBar: (builder: any) => {
                 // Undo/Redo — 最前面独立组
                 builder.addGroup('history', '').addItem('undo', {
-                    icon: I_UNDO as any,
+                    icon: TbUndo as any,
                     active: (ctx: any) => undo(ctx.get(editorViewCtx).state),
                     onRun: (ctx: any) => { const v = ctx.get(editorViewCtx); undo(v.state, v.dispatch, v); },
                 } as any).addItem('redo', {
-                    icon: I_REDO as any,
+                    icon: TbRedo as any,
                     active: (ctx: any) => redo(ctx.get(editorViewCtx).state),
                     onRun: (ctx: any) => { const v = ctx.get(editorViewCtx); redo(v.state, v.dispatch, v); },
                 } as any);
                 // 清除格式 — formatting 组末尾（行内代码后面）
                 builder.getGroup('formatting').addItem('clear-format', {
-                    icon: I_ERASER as any,
+                    icon: TbEraser as any,
                     active: (ctx: any) => {
                         const v = ctx.get(editorViewCtx);
                         const { from, to, empty } = v.state.selection;
@@ -645,7 +639,7 @@ export async function createEditor(
                     g.clear();
                     if (linkItem) g.addItem('link', linkItem);
                     g.addItem('image', {
-                        icon: I_IMG as any,
+                        icon: TbImage as any,
                         active: () => false,
                         onRun: (ctx: any) => {
                             ctx.get(editorViewCtx).dom.dispatchEvent(new CustomEvent('epytor:insertImage', { bubbles: true }));
@@ -655,7 +649,7 @@ export async function createEditor(
                 }
                 // 设置 — 末尾独立组
                 builder.addGroup('settings', '').addItem('settings', {
-                    icon: I_GEAR as any,
+                    icon: TbGear as any,
                     active: () => false,
                     onRun: () => {
                         document.dispatchEvent(new CustomEvent('epytor:openSettings', { bubbles: true }));

@@ -43,6 +43,7 @@ import { initToc } from "./components/toc";
 import type { Editor } from "@milkdown/kit/core";
 import { editorViewCtx } from "@milkdown/kit/core";
 import { applyTooltip } from "./ui/tooltip";
+import { IconMaximize2 } from "./ui/icons";
 import { t } from "./i18n";
 
 let currentEditor: Editor | null = null;
@@ -526,7 +527,6 @@ document.addEventListener("paste", (e) => {
 
 
 // ── 代码块复制 + 全屏 ───────────────────────────────────────────────────────
-const ICON_MAXIMIZE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
 
 function enhanceCodeBlocks(container: HTMLElement): void {
     // ── 复制按钮：点击后弹 ✔ 提示 ────────────────────────────────────
@@ -553,7 +553,7 @@ function enhanceCodeBlocks(container: HTMLElement): void {
 
         const fsBtn = document.createElement('button');
         fsBtn.className = 'epytor-fullscreen-btn';
-        fsBtn.innerHTML = ICON_MAXIMIZE;
+        fsBtn.innerHTML = IconMaximize2;
         applyTooltip(fsBtn, t('View Fullscreen'));
         fsBtn.addEventListener('mousedown', (ev) => {
             ev.preventDefault(); ev.stopPropagation();
