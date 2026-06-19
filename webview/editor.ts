@@ -23,7 +23,7 @@ import { CellSelection, TableMap } from "@milkdown/kit/prose/tables";
 import { $prose } from "@milkdown/kit/utils";
 import { CrepeBuilder } from "@milkdown/crepe";
 import { linkTooltip } from "@milkdown/crepe/feature/link-tooltip";
-import { TbUndo, TbRedo, TbImage, TbEraser, TbGear } from "./ui/icons";
+import { TbUndo, TbRedo, TbImage, TbEraser, TbGear, TbToc } from "./ui/icons";
 
 // 调试日志开关（由 index.ts setDebugMode 消息驱动）
 let logTableSel = false;
@@ -64,6 +64,12 @@ const codeLanguages = allCodeLanguages.filter(
     (l: { alias: string[] }) => l.alias.some((a) => WANTED_LANGS.has(a))
 );
 // Mermaid 不在 @codemirror/language-data 中，手动添加（仅标签，无语法高亮）
+codeLanguages.unshift({
+    name: "Text",
+    alias: ["text", "plaintext", "txt"],
+    extensions: ["txt"],
+    load: async () => undefined,
+});
 codeLanguages.push({
     name: "Mermaid",
     alias: ["mermaid"],
@@ -647,6 +653,14 @@ export async function createEditor(
                     } as any);
                     if (tableItem) g.addItem('table', tableItem);
                 }
+                // 目录切换 — 设置前独立组
+                builder.addGroup('toc', '').addItem('toc', {
+                    icon: TbToc as any,
+                    active: () => false,
+                    onRun: () => {
+                        onTocToggle?.();
+                    },
+                } as any);
                 // 设置 — 末尾独立组
                 builder.addGroup('settings', '').addItem('settings', {
                     icon: TbGear as any,
@@ -655,13 +669,19 @@ export async function createEditor(
                         document.dispatchEvent(new CustomEvent('epytor:openSettings', { bubbles: true }));
                     },
                 } as any);
-                // 将 history 组移到最前面
+                // 将 toc、history 组移到最前面
                 const groups = builder.build();
+                const tocGroup = groups.find((g: any) => g.key === 'toc');
+                if (tocGroup) {
+                    const idx = groups.indexOf(tocGroup);
+                    groups.splice(idx, 1);
+                    groups.unshift(tocGroup);
+                }
                 const historyGroup = groups.find((g: any) => g.key === 'history');
                 if (historyGroup) {
                     const idx = groups.indexOf(historyGroup);
                     groups.splice(idx, 1);
-                    groups.unshift(historyGroup);
+                    groups.splice(1, 0, historyGroup);
                 }
             },
         })

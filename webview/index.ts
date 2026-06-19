@@ -631,6 +631,7 @@ function enhanceCodeBlocks(container: HTMLElement): void {
 /** 为 Crepe top-bar 按钮添加自定义 tooltip（i18n 翻译，无快捷键） */
 function setupTopBarTooltips(container: HTMLElement): void {
     const TOOLTIPS = [
+        t('Table of Contents'), // toc
         t('Undo'),             // history: undo
         t('Redo'),             // history: redo
         t('Bold'),             // formatting: bold

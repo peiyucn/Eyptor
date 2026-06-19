@@ -188,6 +188,7 @@ body {
 
 .milkdown .ProseMirror h1 {
     font-size: 2em;
+    font-weight: 700;
     border-bottom: 1px solid var(--vscode-panel-border, rgba(128,128,128,0.35));
     padding-bottom: 0.25em;
 }
@@ -199,9 +200,9 @@ body {
 }
 
 .milkdown .ProseMirror h3 { font-size: 1.25em; }
-.milkdown .ProseMirror h4 { font-size: 1.1em; }
+.milkdown .ProseMirror h4 { font-size: 1.15em; }
 .milkdown .ProseMirror h5 { font-size: 1em; }
-.milkdown .ProseMirror h6 { font-size: 0.9em; color: var(--vscode-descriptionForeground); }
+.milkdown .ProseMirror h6 { font-size: 0.9em; font-weight: 400; color: var(--vscode-descriptionForeground); }
 
 /* 粗体、斜体 */
 .milkdown .ProseMirror strong {
