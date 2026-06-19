@@ -8,9 +8,11 @@
 
 A WYSIWYG Markdown editor for VS Code, powered by [Milkdown](https://milkdown.dev/). Edit `.md` / `.markdown` as rich text, saved as standard Markdown.
 
-> **Project starts at v1.1.0**, forked from [git-xing/md-wysiwyg-editor](https://github.com/git-xing/md-wysiwyg-editor) (MIT) v0.1.6.
+> **The true starting point of this project is v1.1.0**, forked from [git-xing/md-wysiwyg-editor](https://github.com/git-xing/md-wysiwyg-editor) (MIT) v0.1.6.
 >
-> v0.1.6 → v1.1.0: rebuilt foundations (Milkdown 7.21.2 + Crepe / CodeMirror 6), new features (LaTeX math / image resize & caption / image picker), streamlined bloat, fixed bugs (incl. blank-line accumulation). See [CHANGELOG](CHANGELOG.md).
+> v0.1.6 → v1.0.0 / v1.0.1: adapted for VS Code Marketplace (icons, i18n, README), fixed critical issues (blank-line accumulation on paste, table-cell enter no newline).
+>
+> v0.1.6 → v1.1.0: rebuilt foundations (Milkdown 7.21.2 + Crepe / CodeMirror 6), new features (LaTeX math / image resize & caption / image picker), streamlined bloat. See [CHANGELOG](CHANGELOG.md).
 
 ## Features
 

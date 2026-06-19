@@ -8,9 +8,11 @@
 
 基于 [Milkdown](https://milkdown.dev/) 的 VSCode 所见即所得 Markdown 编辑器。富文本编辑 `.md` / `.markdown`，保存为标准 Markdown。
 
-> **项目起点为 v1.1.0**，fork from [git-xing/md-wysiwyg-editor](https://github.com/git-xing/md-wysiwyg-editor) (MIT) v0.1.6。
+> **本项目真正的起点为 v1.1.0**，fork from [git-xing/md-wysiwyg-editor](https://github.com/git-xing/md-wysiwyg-editor) (MIT) v0.1.6。
 >
-> v0.1.6 → v1.1.0：重构根基（Milkdown 7.21.2 + Crepe / CodeMirror 6），新增功能（LaTeX 公式 / 图片缩放与 Caption / 图片选择器），精简冗余，修复空行累积等若干 bug。详见 [CHANGELOG](CHANGELOG.zh-CN.md)。
+> v0.1.6 → v1.0.0 / v1.0.1：适配 VS Code Marketplace（图标、i18n、README），修复关键问题（粘贴空行累积、表格单元格回车不换行）。
+>
+> v0.1.6 → v1.1.0：重构根基（Milkdown 7.21.2 + Crepe / CodeMirror 6），新增功能（LaTeX 公式 / 图片缩放与 Caption / 图片选择器），精简冗余。详见 [CHANGELOG](CHANGELOG.zh-CN.md)。
 
 ## 功能
 
